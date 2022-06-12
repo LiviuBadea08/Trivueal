@@ -1,5 +1,7 @@
 <template>
   <main class="flex h-screen item-center justify-center bg-gray-100">
+    <!-- quiz overlay -->
+    <QuizCompleteOverlay v-if="endOfQuiz"></QuizCompleteOverlay>
     <!-- quiz container -->
     <div
       class="overflow-hidden absolute bg-white flex-none container shadow-lg rounded-lg px-12 py-6"
@@ -20,7 +22,10 @@
 
         <!-- timer container -->
         <div class="bg-white shadow-lg p-1 rounded-full w-full h-5 mt-4">
-          <div class="bg-blue-700 rounded-full w-11/12 h-full"></div>
+          <div
+            class="bg-blue-700 rounded-full w-11/12 h-full"
+            :style="`width: ${timer}%`"
+          ></div>
         </div>
 
         <!-- question container -->
@@ -39,7 +44,7 @@
 
           <div v-for="(choice, item) in currentQuestion.choices" :key="item">
             <div
-              class="neumorph-1 option-default bg-gray-100 p-2 rounded-lg mb-3"
+              class="neumorph-1 option-default bg-gray-100 p-2 rounded-lg mb-3 relative"
               :ref="optionChosen"
               @click="onOptionClicked(choice, item)"
             >
@@ -87,12 +92,13 @@
 
 <script>
 import { ref, onMounted } from "vue";
-
+import QuizCompleteOverlay from "./components/QuizCompleteOverlay.vue";
 export default {
   setup() {
     // data
     let canClick = true;
-
+    let timer = ref(100);
+    let endOfQuiz = ref(false);
     let questionCounter = ref(0);
     let score = ref(0);
     const currentQuestion = ref({
@@ -126,11 +132,13 @@ export default {
       // check lif there are more questions to load
       if (questions.length > questionCounter.value) {
         //load question
+        timer.value = 100;
         currentQuestion.value = questions[questionCounter.value];
         console.log("Current question: " + currentQuestion.value);
         questionCounter.value++;
       } else {
         // no more questions
+        endOfQuiz.value = true;
         console.log("Out of questions");
       }
     };
@@ -166,6 +174,7 @@ export default {
           divContainer.classList.add("option-wrong");
           divContainer.classList.remove("option-default");
         }
+        timer.value = 100;
         canClick = false;
         // TODO go to next question
         clearSelected(divContainer);
@@ -176,14 +185,27 @@ export default {
       }
     };
 
+    const countdownTimer = function () {
+      let interval = setInterval(() => {
+        if (timer.value > 0) {
+          timer.value--;
+        } else {
+          console.log("Time is up");
+          clearInterval(interval);
+        }
+      }, 150);
+    };
+
     // lifecycle hooks
 
     onMounted(() => {
       loadQuestion();
+      countdownTimer();
     });
 
     // return
     return {
+      timer,
       currentQuestion,
       questions,
       score,
@@ -191,7 +213,11 @@ export default {
       loadQuestion,
       onOptionClicked,
       optionChosen,
+      endOfQuiz,
     };
+  },
+  components: {
+    QuizCompleteOverlay,
   },
 };
 </script>
