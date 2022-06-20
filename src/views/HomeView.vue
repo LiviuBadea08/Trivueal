@@ -99,11 +99,11 @@ export default {
     let percentageScore = ref(0);
 
     // eslint-disable-next-line
-    const questions = [];
+    const questions = ref([]);
 
     const loadQuestion = () => {
       canClick = true;
-      if (questions.length > questionCounter.value) {
+      if (questions.value.length > questionCounter.value) {
         timer.value = 100;
         currentQuestion.value = questions.value[questionCounter.value];
         console.log("Current question: " + currentQuestion.value);
