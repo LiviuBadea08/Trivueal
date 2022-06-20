@@ -1,8 +1,11 @@
+/* eslint-disable prettier/prettier */
 <template>
   <main class="flex h-screen item-center justify-center bg-gray-100">
-    <!-- quiz overlay -->
-    <QuizCompleteOverlay v-if="endOfQuiz"></QuizCompleteOverlay>
-    <!-- quiz container -->
+    <QuizCompleteOverlay
+      v-if="endOfQuiz"
+      :percent="percentageScore"
+      @restartQuiz="onQuizStart"
+    ></QuizCompleteOverlay>
     <div
       class="overflow-hidden absolute bg-white flex-none container shadow-lg rounded-lg px-12 py-6"
     >
@@ -11,16 +14,12 @@
         alt=""
         class="absolute -top-10 left-0 object-none"
       />
-      <!-- contents -->
       <div class="relative z-20">
-        <!-- score container -->
-
         <div class="text-right text-gray-800">
           <p class="text-sm leading-3">Score</p>
           <p class="font-bold">{{ score }}</p>
         </div>
 
-        <!-- timer container -->
         <div class="bg-white shadow-lg p-1 rounded-full w-full h-5 mt-4">
           <div
             class="bg-blue-700 rounded-full w-11/12 h-full"
@@ -28,7 +27,6 @@
           ></div>
         </div>
 
-        <!-- question container -->
         <div
           class="rounded-lg bg-gray-100 p-2 neumorph-1 text-center font-bold text-gray-800 mt-8"
         >
@@ -37,11 +35,7 @@
           </div>
         </div>
 
-        <!-- option container -->
-
         <div class="mt-8">
-          <!-- option container -->
-
           <div v-for="(choice, item) in currentQuestion.choices" :key="item">
             <div
               class="neumorph-1 option-default bg-gray-100 p-2 rounded-lg mb-3 relative"
@@ -55,10 +49,7 @@
               </div>
 
               <div class="rounded-lg font-bold flex p-2">
-                <!-- option ID -->
                 <div class="p-3 rounded-lg">{{ item }}</div>
-
-                <!-- option name -->
 
                 <div class="flex items-center pl-6">
                   {{ choice }}
@@ -68,7 +59,6 @@
           </div>
         </div>
 
-        <!-- progress indicator container-->
         <div class="mt-8 text-center">
           <div class="h-1 w-12 bg-gray-800 rounded-full mx-auto"></div>
           <p class="font-bold text-color-gray-800">
@@ -95,7 +85,6 @@ import { ref, onMounted } from "vue";
 import QuizCompleteOverlay from "./components/QuizCompleteOverlay.vue";
 export default {
   setup() {
-    // data
     let canClick = true;
     let timer = ref(100);
     let endOfQuiz = ref(false);
@@ -104,46 +93,27 @@ export default {
     const currentQuestion = ref({
       question: "",
       answer: 1,
-      /* eslint-disable */
       choices: [],
-      /* eslint-enable */
     });
 
-    const questions = [
-      {
-        question: "Quien chupa mas vergoglios?",
-        answer: 1,
-        choices: ["Diegu galluuuuuuuuuuuu", "Diegu", "Dieguin", "D"],
-      },
-      {
-        question: "Quien come mas colitas?",
-        answer: 1,
-        choices: ["Diegu gallu", "Diegu", "Dieguin", "D"],
-      },
-      {
-        question: "es la tercera pregunta?",
-        answer: 1,
-        choices: ["sies", "Diegu", "Dieguin", "D"],
-      },
-    ];
+    let percentageScore = ref(0);
+
+    // eslint-disable-next-line
+    const questions = [];
 
     const loadQuestion = () => {
       canClick = true;
-      // check lif there are more questions to load
       if (questions.length > questionCounter.value) {
-        //load question
         timer.value = 100;
-        currentQuestion.value = questions[questionCounter.value];
+        currentQuestion.value = questions.value[questionCounter.value];
         console.log("Current question: " + currentQuestion.value);
         questionCounter.value++;
       } else {
-        // no more questions
-        endOfQuiz.value = true;
+        onQuizEnd();
         console.log("Out of questions");
       }
     };
 
-    // methods/functions
     let itemsRef = [];
     const optionChosen = (element) => {
       if (element) {
@@ -176,12 +146,10 @@ export default {
         }
         timer.value = 100;
         canClick = false;
-        // TODO go to next question
         clearSelected(divContainer);
         console.log(choice, item);
       } else {
-        // cant select option
-        console.log("cant select question");
+        console.log("can't select question");
       }
     };
 
@@ -191,19 +159,79 @@ export default {
           timer.value--;
         } else {
           console.log("Time is up");
+          onQuizEnd();
           clearInterval(interval);
         }
       }, 150);
     };
 
-    // lifecycle hooks
+    const fetchQuestionsFromServer = async function () {
+      console.log("Fetching questions from server...");
+      fetch("https://opentdb.com/api.php?amount=10&category=27")
+        .then((res) => {
+          return res.json();
+        })
+        .then((data) => {
+          const newQuestions = data.results.map((serverQuestion) => {
+            const arrangedQuestion = {
+              question: serverQuestion.question,
+              choices: "",
+              answer: "",
+            };
+
+            const choices = serverQuestion.incorrect_answers;
+
+            arrangedQuestion.answer = Math.floor(Math.random() * 4 + 1);
+
+            choices.splice(
+              arrangedQuestion.answer - 1,
+              0,
+              serverQuestion.correct_answer
+            );
+
+            arrangedQuestion.choices = choices;
+
+            return arrangedQuestion;
+          });
+          console.log("new formated questions", newQuestions);
+
+          questions.value = newQuestions;
+          loadQuestion();
+          countdownTimer();
+        });
+    };
+
+    const onQuizEnd = function () {
+      percentageScore.value = (score.value / 100) * 100;
+
+      timer.value = 0;
+
+      endOfQuiz.value = true;
+    };
+
+    const onQuizStart = function () {
+      canClick = true;
+      timer.value = 100;
+      endOfQuiz.value = false;
+      questionCounter.value = 0;
+      score.value = 0;
+      currentQuestion.value = {
+        question: "",
+        answer: 1,
+        choices: [],
+      };
+
+      percentageScore.value = 0;
+
+      questions.value = [];
+
+      fetchQuestionsFromServer();
+    };
 
     onMounted(() => {
-      loadQuestion();
-      countdownTimer();
+      fetchQuestionsFromServer();
     });
 
-    // return
     return {
       timer,
       currentQuestion,
@@ -214,7 +242,34 @@ export default {
       onOptionClicked,
       optionChosen,
       endOfQuiz,
+      onQuizEnd,
+      percentageScore,
+      onQuizStart,
     };
+  },
+
+  computed: {
+    formattedQuestion() {
+      let entities = {
+        amp: "&",
+        apos: "'",
+        "#x27": "'",
+        "#x2F": "/",
+        "#39": "'",
+        "#47": "/",
+        lt: "<",
+        gt: ">",
+        nbsp: " ",
+        quot: '"',
+        "#039": "'",
+      };
+      return this.currentQuestion.question.replace(
+        /&([^;]+);/gm,
+        function (match, entity) {
+          return entities[entity] || match;
+        }
+      );
+    },
   },
   components: {
     QuizCompleteOverlay,
